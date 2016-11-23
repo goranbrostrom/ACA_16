@@ -1,15 +1,13 @@
----
-output: html_document
----
 # ASA_16
 
 ## Introduction
 
-This is material for the course *ntermediate Data Structure and Extraction
+This is material for the course *Intermediate Data Structure and Extraction
 Software*, Amsterdam 28- 30 November 2016.
 
-**fromIDS.Rmd** is an *R markdown* file; the corresponding *html* file is 
-**fromIDS.html**. Creates a file for statistical analysis from IDS files
+**fromIDS.Rmd** is an *R markdown* file; the corresponding *html* output is 
+**fromIDS.html** (included here for convenience). Creates a file for
+**statistical analysis from IDS files 
 (INDIVIDUAL and INDIV_INDIV, particularly simple versions). And
 documentation *on the fly*. The example topic is *infant mortality*.
 
