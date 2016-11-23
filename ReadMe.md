@@ -13,10 +13,9 @@ documentation *on the fly*. The example topic is *infant mortality*.
 
 ## General
 
-Install **R** and *RStudio* and run the Rmarkdown file(s). You need data (IDS),
-which is included here (you can also use your own, given the correct
-structure). *RStudio* will guide you in installing the 
-necessary add-on packages.
+Install **R** and *RStudio* and run the Rmarkdown file(s). You need data,
+which is *not* included here. *RStudio* will guide you in installing the 
+necessary add-on packages (if any).
 
 You can choose as output media from *html*, *pdf* and *word*.
 
