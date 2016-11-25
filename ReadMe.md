@@ -5,6 +5,9 @@
 This is material for the course *Intermediate Data Structure and Extraction
 Software*, Amsterdam 28- 30 November 2016.
 
+**readData.Rmd** reads the text files *INDIVIDUAL* and *INDIV_INDIV*, makes
+  some selections and saves in **R** format (*.rda*). 
+
 **fromIDS.Rmd** is an *R markdown* file; the corresponding *html* output is 
 **fromIDS.html** (included here for convenience). Creates a file for
 *statistical analysis from IDS files* 
