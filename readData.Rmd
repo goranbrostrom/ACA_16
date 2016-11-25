@@ -1,0 +1,267 @@
+---
+title: "Convert IDS files to R format"
+author: "Göran Broström"
+date: "November 23, 2016"
+output: html_document
+bibliography: ids.bib
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(echo = TRUE, cache = TRUE, warnings = FALSE)
+table <- function(..., useNA = 'ifany') base::table(..., useNA = useNA)
+```
+
+## Introduction
+
+The two IDS data sets we will use are stored in ordinary text files. It is convenient to convert these files to the *internal format of* **R**, files with the extension *.rda*. In the process of doing this, we also do some selections and transformations. Most importantly, we split the file *INDIVIDUAL* into two parts, *person* and *observation*. *person* contains the *time-fixed* information and *observation* contains the *time-varying*.
+
+The raw data files, *INDIVIDUAL.txt* and *INDIV_INDIV.txt* are stored in the subdirectory *rawdata*, and the converted files, *person.rda*, *observation.rda* and *INDIV_INDIV.rda* will be stored in the subdirectory *data*. 
+
+## The INDIVIDUAL file
+
+In reading textfiles into **R**, the standard tool is the function *read.table*:
+
+```{r readrawdata}
+options(stringsAsFactors = FALSE)
+individual <- read.table("rawdata/INDIVIDUAL.txt", header = FALSE)
+names(individual)[1:7] <- c("Id", "Id_D", "Id_I", "Source", 
+                            "Type", "Value", "Value_Id_C")
+names(individual)[8:10] <- c("Day", "Month", "Year")
+names(individual)[11:13] <- c("Start_day", "Start_month", "Start_year")
+names(individual)[14:16] <- c("End_day", "End_month", "End_year")
+names(individual)[17:18] <- c("DateOfOccurrence", "TimeInvariant")
+```
+
+This data file is heavily *un-tidy* [@tidy-data]. *Tidy data* have variables in columns and observations in rows. The column *Type* in *INDIVIDUAL* has the following collection of possible values (with frequencies):
+
+```{r showType}
+with(individual, table(Type))
+```
+
+For our small example, we select just a *few Type*s. The package *dplyr* is very handy for data manipulation in *pseudo-SQL* style. We start by loading it, and then we use the function *filter*, which select *observations* (rows) by certain conditions.
+
+```{r selectTypes}
+library(dplyr)
+individual <- filter(individual, Type %in% c("BIRTH_DATE", "DEATH_DATE",
+                                             "START_OBSERVATION", "END_OBSERVATION",
+                                             "LEGITIMACY", "MULTIPLE_BIRTH",
+                                             "OCCUPATION_HISCO", "SEX", 
+                                             "MARRIAGE_DATE", "BIRTH_LOCATION"))
+```
+
+We first look at the column *TimeInvariant*:
+
+```{r timeInvariant}
+select(individual, Type, TimeInvariant) %>% table()
+```
+
+The symbol "*%>%*"" is a *pipe*: You can think of it as saying "*and then*". It is equivalent to a two-step nested procedure:
+
+```{r equi, eval = FALSE}
+table(select(individual, Type, TimeInvariant))
+```
+
+or non-nested:
+
+```{r non-nest, eval = FALSE}
+x <- select(individual, Type, TimeInvariant)
+table(x)
+rm(x) # Remove the temporary variable 'x'
+```
+
+The advantages with the pipe is:
+
+- It is easy to read (once you are familiar with the pipe concept).
+
+- It does not clutter with temporary variables: All 'dirty work' is hidden.
+
+- It is *fast*: The *dplyr* package is written in optimized *C++* code.
+
+Obviously, the variable *TimeInvariant* takes the values "" (the empty string) and "TimeInvariant". Not very logical. Furthermore, the (only) variables that are *truly time-invariant* are *BIRTH_DATE*, *BIRTH_LOCATION*, *DEATH_DATE*, *LEGITIMACY*, *MULTIPLE_BIRTH*, and *SEX*.
+So we recode, relabel, and convert to *logical*:
+
+```{r recode TimeInvariant}
+individual$TimeInvariant <- with(individual, 
+                                 Type %in% c("BIRTH_DATE", "BIRTH_LOCATION",
+                                             "DEATH_DATE", "LEGITIMACY",
+                                             "MULTIPLE_BIRTH", "SEX"))
+select(individual, Type, TimeInvariant) %>% table()
+```
+
+This is more like it. Now the simple continuation is to split the data frame *individual* into two according to whether "TimeInvariant" is TRUE or FALSE. Let us call the two data frames 
+*person* and *observation*, respectively:
+
+```{r splitfile}
+person <- filter(individual, TimeInvariant)
+person$TimeInvariant <- NULL # Removes 'TimeInvariant' from 'person'
+observation <- filter(individual, !TimeInvariant) # '!' reads 'NOT', logical negation
+observation$TimeInvariant <- NULL
+
+```
+
+Now let us look at the column *DateOfOccurrence* in the two data frames (I use the "standard R" way of using *table* here, as a comparison):
+
+```{r selectedTypes}
+with(person, table(Type, DateOfOccurrence))
+with(observation, table(Type, DateOfOccurrence))
+```
+
+Note that *DateOfOcurrence* takes two values, "" (empty string) and "Date of occurrence". More logical is to let it take the values *FALSE* and *TRUE*, respectively:
+
+```{r recodeDOO}
+person$DateOfOccurrence <- person$DateOfOccurrence != ""
+with(person, table(Type, DateOfOccurrence))
+observation$DateOfOccurrence <- observation$DateOfOccurrence != ""
+with(observation, table(Type, DateOfOccurrence))
+```
+
+We draw the conclusion that the variable *DateOfOccurrence* is redundant in both *person* and *observation*, so we remove it. And we remove the data frame *individual* at the same time:
+
+```{r killvar}
+person$DateOfOccurrence <- NULL
+observation$DateOfOccurrence <- NULL
+rm(individual)
+```
+
+Now we take a look at our new data frames, one at a time.
+
+### The *person* data frame
+
+Looks like this:
+
+```{r lookatperson}
+summary(person)
+```
+
+We can  easily see that the variables *Start_blah* and *End_blah* are constant (= 0) and can be removed. Further, *Id*, *Source*, and *Value_Id_C* are not interesting for our purposes
+
+```{r removefromperson}
+person <- select(person, Id_I, Type, Value, Day, Month, Year)
+head(person)
+```
+
+Good so far, but let us convert the three variables *Day*, *Month*, and *Year* into a **date**:
+
+```{r}
+person$date <- with(person, paste(Year, Month, Day, sep = "-")) %>%
+               as.Date("%Y-%m-%d")
+person$Day <- person$Month <- person$Year <- NULL
+##person$Id_I <- as.character(person$Id_I)
+##person$Type <- as.factor(person$Type)
+str(person)
+```
+
+Which Types has dates?
+
+```{r tabletypevalue}
+with(person, table(Type, is.na(date)))
+```
+
+We note that for *BIRTH_DATE*, *DEATH_DATE*, the *date* is in fact the *Value*. So,
+
+```{r makevalue}
+change <- person$Type %in% c("BIRTH_DATE", "DEATH_DATE")
+person$Value[change] <- person$date[change]
+rm(change) # Just a temporary variable ...
+person$date <- NULL # Not needed any more
+head(person)
+```
+ Good reduction, but *person* is still *un-tidy*: The levels of *Type*, `r levels(person$Type)` are in fact names of *variables*. We use the package *tidyr* to expand *person*. Due to bad data, we remove all individuals with duplicate *Type == "BIRTH_LOCATION"*.
+ 
+```{r badloc}
+#x <- with(person, tapply(Type == "BIRTH_LOCATION", Id_I, sum))
+person <- filter(person, !(Type == "BIRTH_LOCATION" & Value == "Locality"))
+x <- group_by(person, Id_I) %>% summarize(count = sum(Type == "BIRTH_LOCATION"))
+select(x, count) %>% table()
+```
+
+I do not want to complicate things here, so I keep only those with exactly one *BIRTH_LOCATION*:
+```{r keeponly}
+id.in <- x$Id_I[x$count == 1]
+person <- filter(person, Id_I %in% id.in)
+rm(id.in, x) # Temporary variables of no use anymore
+```
+
+And now we call *spread*.
+ 
+```{r usetidyr, eval = TRUE}
+library(tidyr)
+
+person <- spread(person, Type, Value)
+person$BIRTH_DATE <- as.Date(as.numeric(person$BIRTH_DATE), origin = "1970-01-01")
+person$DEATH_DATE <- as.Date(as.numeric(person$DEATH_DATE), origin = "1970-01-01")
+head(person)
+```
+
+Dates are now fixed. Due to the earlier un-tidiness, variables are all *character*, which we must fix.
+
+```{r trimma}
+library(stringr)
+person$BIRTH_LOCATION <- str_trim(person$BIRTH_LOCATION)
+person <- filter(person, BIRTH_LOCATION %in%  
+                  c("SKELLEFTEÅ", "JÖRN", "NORSJÖ", "BURTRÄSK", "LÖVÅNGER"))
+person$MULTIPLE_BIRTH <- str_trim(person$MULTIPLE_BIRTH)
+person$MULTIPLE_BIRTH <- factor(person$MULTIPLE_BIRTH, labels = c("2", "3", "1"))
+person$MULTIPLE_BIRTH <- relevel(person$MULTIPLE_BIRTH, ref = "1")
+person <- filter(person, !is.na(BIRTH_DATE))
+person$BIRTH_LOCATION <- factor(person$BIRTH_LOCATION)
+person$SEX <- factor(person$SEX)
+person$LEGITIMACY <- factor(person$LEGITIMACY)
+person$Id_I <- as.character(person$Id_I)
+summary(person)
+```
+
+## The *observation* data frame
+
+We first remove all individuals not present in the *person* data frame.
+
+```{r remove}
+observation <- filter(observation, Id_I %in% person$Id_I)
+summary(observation)
+```
+
+We start by cleaning this a bit, make dates, remove not-so-interesting variables, etc.
+
+```{r cleanobs}
+observation$date <- with(observation, paste(Year, Month, Day, sep = "-")) %>%
+    as.Date("%Y-%m-%d")
+observation$start_date <- with(observation, 
+                               paste(Start_year, Start_month, Start_year, sep = "-")) %>%
+                          as.Date("%Y-%m-%d")
+observation$end_date <- with(observation, paste(End_year, End_month, End_day, sep = "-")) %>%
+    as.Date("%Y-%m-%d")
+observation <- select(observation, Id_I, Type, Value, date, start_date, end_date)
+head(observation)
+id1 <- length(unique(observation$Id_I))
+```
+
+The number of individuals is `r id1`.
+There is a lot of missing dates, and we need at least *one* date for each record, so let us remove all records with no dates.
+
+```{r keepdates}
+observation <- filter(observation, !(is.na(date) & is.na(start_date) & is.na(end_date)))
+observation <- arrange(observation, Id_I, date, start_date)
+knitr::kable(head(observation))
+id2 <- length(unique(observation$Id_I))
+```
+
+Now the number of persons left is `r id2`, so we lost `r id1 - id2` of them. We also note in passing that *OCCUPATION_HISCO* is duplicated for *Id_I = 10000250* (exactly the same dates).
+Makes me feel that I maybe leave occupation (HISCO) out for the course, and only concentrate on *MARRIAGE_DATE* as a time-varying covariate.
+
+## The *INDIV_INDIV* data
+
+```{r sumind}
+indivIndiv <- read.table("rawdata/INDIV_INDIV.txt")
+summary(indivIndiv)
+```
+
+OK, variables *V7:V17* are all zero, and V2 and V5 are both  constant, and V1 is just a row number, so we remove them.
+
+```{r v1v6}
+indivIndiv <- select(indivIndiv, V3, V4, V6)
+names(indivIndiv) <- c("id_1", "id_2", "Relation")
+head(indivIndiv)
+```
+
+## References
