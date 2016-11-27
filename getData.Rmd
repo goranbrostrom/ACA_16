@@ -1,0 +1,78 @@
+---
+title: "Demography and Event History Analysis using R"
+author: "Göran Broström"
+date: '2015-06-18'
+output:
+  slidy_presentation:
+    highlight: tango
+  html_document: default
+  ioslides_presentation:
+    fig_height: 3
+    highlight: tango
+    logo: figures/umu15.png
+  pdf_document: default
+  beamer_presentation:
+    fig_height: 3
+    highlight: tango
+    keep_tex: yes
+css: style.css
+---
+
+##Introduction
+
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(echo = TRUE, cache = TRUE, warnings = FALSE)
+table <- function(..., useNA = 'ifany') base::table(..., useNA = useNA)
+```
+
+- Read *INDIVIDUAL.txt* and *INDIV_INDIV.txt* into **R**.
+- Perform some selections and transformations.
+- Save into **R** format, *.rda* files
+
+## Reading the INDIVIDUAL file
+
+
+```{r}
+options(stringsAsFactors = FALSE)
+individual <- read.table("rawdata/INDIVIDUAL.txt", 
+                         header = FALSE)
+names(individual) <- c("Id", "Id_D", "Id_I", "Source", 
+                 "Type", "Value", "Value_Id_C",
+                 "Day", "Month", "Year",
+                 "Start_day", "Start_month", "Start_year",
+                 "End_day", "End_month", "End_year",
+                 "DateOfOccurrence", "TimeInvariant")
+```
+
+## Looking at the variable names ("Type")
+
+<tiny>
+
+```{r echo = FALSE}
+x <- matrix(sort(unique(individual$Type)), ncol = 4)
+colnames(x) <- c("1", "2", "3", "4")
+knitr::kable(x)
+```
+
+</tiny>
+
+- Most of these variables can be thrown out.
+- Keep: BIRTH_DATE, BIRTH_LOCATION, DEATH_DATE, END_OBSERVATION, LEGITIMACY, MULTIPLE_BIRTH, OCCUPATION, START_OBSERVATION, SEX
+
+## The R package 'dplyr' (Hadley Wickham)
+
+
+```{r}
+library(dplyr)
+individual <- filter(individual, Type %in% c("BIRTH_DATE", "DEATH_DATE", "START_OBSERVATION", "END_OBSERVATION", "LEGITIMACY", "MULTIPLE_BIRTH", "OCCUPATION_HISCO", "SEX", "MARRIAGE_DATE", "BIRTH_LOCATION"))
+```
+
+- **filter** selects *observations* (rows) by a *condition*
+- filter(data, condition)
+-  **x %in% y** returns *a logical vector* of the same length as *x*:
+```{r}
+c(1, 3, 2, 5) %in% c(1, 2)
+```
+
