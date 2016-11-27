@@ -12,7 +12,8 @@ Software*, Amsterdam 28- 30 November 2016.
 **fromIDS.html** (included here for convenience). Creates a file for
 *statistical analysis from IDS files* 
 (INDIVIDUAL and INDIV_INDIV, particularly simple versions). And
-documentation *on the fly*. The example topic is *infant mortality*.
+documentation *on the fly*. The example topic is *infant mortality*. 
+(This is an early attempt that will not be used in the course.)
 
 ## General
 
