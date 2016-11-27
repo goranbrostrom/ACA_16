@@ -1,0 +1,817 @@
+\documentclass[t,a4paper]{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{natbib}
+\usepackage{url}
+%%\usepackage{a4wide}
+
+%%\usepackage[figuresonly]{endfloat}
+%%\renewcommand{\efloatseparator}{\mbox{}}
+
+\usepackage{color}
+
+\newcommand{\emp}[1]{\textcolor{blue}{#1}}
+
+\usetheme{Singapore}% best choice.
+  \setbeamercovered{transparent}%
+
+\newcommand{\R}{{\bf R}}
+\newcommand{\code}[1]{{\tt #1}}
+
+\bibliographystyle{apalike}
+
+<<setup, include = FALSE>>=
+knitr::opts_chunk$set(cache=TRUE,echo=TRUE,message=FALSE,warning=TRUE,fig.height = 4, fig.path="figslides/")##$
+table <- function(..., useNA = 'ifany') base::table(..., useNA = useNA)
+library(knitr)
+@ 
+
+\title{Reading IDS data into R}
+
+\author{Göran Broström}
+
+\date{30 november, 2016}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Introduction}
+  
+\begin{itemize}
+\item Read \emp{Individual.txt} and \emp{IindivIndiv.txt} into \R .
+\item  Perform some selections and transformations.
+\item Save into \R\ format, \emp{.rda} files.
+\end{itemize}
+  
+\end{frame}
+
+\begin{frame}[fragile]{Reading the INDIVIDUAL file}
+ 
+\scriptsize 
+
+<<readIND,echo=TRUE>>=
+options(stringsAsFactors = FALSE)
+
+individual <- read.table("rawdata/Individual.txt", 
+                         header = FALSE)
+
+names(individual) <- c("Id", "IdD", "IdI", "Source", 
+                 "Type", "Value", "ValueIdC",
+                 "Day", "Month", "Year",
+                 "StartDay", "StartMonth", "StartYear",
+                 "EndDay", "EndMonth", "EndYear",
+                 "DateOfOccurrence", "TimeInvariant")
+@   
+  
+\end{frame}  
+
+\begin{frame}[fragile]{Looking at Type}
+
+{\tiny
+
+<<looktype>>=
+print(sort(unique(individual$Type)))
+@   
+}
+
+\begin{itemize}
+\item \emp{Most} of these variables can be \emp{thrown out}.
+\item \emp{Keep}: BIRTH\_DATE, BIRTH\_LOCATION, DEATH\_DATE, END\_OBSERVATION, LEGITIMACY, MULTIPLE\_BIRTH, OCCUPATION, START\_OBSERVATION, SEX
+\end{itemize}
+
+\end{frame}  
+
+
+\begin{frame}[fragile]{The R package 'dplyr'}
+
+\scriptsize  
+
+Hadley Wickham (\url{http://hadley.nz}, \url{https://www.rstudio.com})
+  
+
+<<dplyr>>=
+library(dplyr)
+individual <- filter(individual, Type %in% c("BIRTH_DATE", "DEATH_DATE", 
+                     "START_OBSERVATION", "END_OBSERVATION", "LEGITIMACY", 
+                     "MULTIPLE_BIRTH", "OCCUPATION_HISCO", "SEX", 
+                     "MARRIAGE_DATE", "BIRTH_LOCATION"))
+@   
+
+\begin{itemize}
+ 
+\item \emp{filter} selects \emp{observations} (rows) by a \emp{condition}.
+\item filter(data, condition)
+\item  \emp{x \%in\% y} returns \emp{a logical vector} of the same length as \emp{x}:
+\end{itemize}  
+
+<<sele>>=
+c(1, 3, 2, 5) %in% c(1, 2)
+@ 
+  
+\end{frame}  
+
+\begin{frame}[fragile]{TimeInvariant}
+  
+\scriptsize
+
+<<timeinvariant>>=
+select(individual, Type, TimeInvariant) %>% table()
+@   
+
+\end{frame}  
+
+\begin{frame}[fragile]{Pipes}
+  
+The symbol "\emp{\%$>$\%}" is a \emp{pipe}: Think of it as saying \emp{and then}. It is equivalent to a two-step nested procedure:
+
+{\scriptsize
+<<equi, eval = FALSE>>=
+table(select(individual, Type, TimeInvariant))
+@
+}
+or non-nested:
+
+{\scriptsize
+<<non-nest, eval = FALSE>>=
+x <- select(individual, Type, TimeInvariant)
+table(x)
+rm(x) # Remove the temporary variable 'x'
+@
+}
+
+The \emp{advantages} with the pipe is:
+\begin{itemize}
+\item It is easy to read (once you are familiar with the pipe concept).
+
+\item It does not clutter with temporary variables.
+
+\item It is \emp{fast}.
+\end{itemize}
+  
+\end{frame}  
+
+\begin{frame}[fragile]{Recode TimeInvariant}
+  
+\scriptsize  
+<<recodeT>>=
+individual$TimeInvariant <- with(individual, Type %in% 
+                            c("BIRTH_DATE", "BIRTH_LOCATION",
+                              "DEATH_DATE", "LEGITIMACY",
+                              "MULTIPLE_BIRTH", "SEX"))
+select(individual, Type, TimeInvariant) %>% table()
+@   
+  
+\end{frame}  
+
+\begin{frame}[fragile]{Data frames {\tt person} and {\tt observation}}
+  
+  
+<<person>>=
+person <- filter(individual, TimeInvariant)
+person$TimeInvariant <- NULL 
+observation <- filter(individual, !TimeInvariant) 
+observation$TimeInvariant <- NULL
+@   
+
+
+\begin{itemize}
+\item '!' means \emp{NOT} (logical negation).
+\item \emp{\tt NULL} means \emp{nothing} (removes): The variable
+  \emp{TimeInvariant} is not needed after the split.
+\item \emp{person} contains time-\emp{fixed} variables.
+ \item \emp{observation} contains time-\emp{varying} variables. 
+\end{itemize}
+
+\end{frame}  
+
+\begin{frame}[fragile]{DateOfOccurrence in {\tt person}}
+
+  {\scriptsize
+<<dooper>>=
+with(person, table(Type, DateOfOccurrence))
+@ 
+}
+The \emp{information} that the birth and death dates are 
+``Date of occurrence'' is \emp{trivial}. Remove it:
+
+<<remooper>>=
+person$DateOfOccurrence <- NULL
+@ 
+
+\end{frame}  
+
+\begin{frame}[fragile]{DateOfOccurrence in {\tt observation}}
+
+  {\scriptsize
+<<dooobs>>=
+with(observation, table(Type, DateOfOccurrence))
+@ 
+}
+The \emp{information} that the birth and death dates are 
+``Date of occurrence'' is \emp{trivial}. Remove it:
+
+<<remooobs>>=
+observation$DateOfOccurrence <- NULL
+@ 
+
+\end{frame}  
+
+\begin{frame}[fragile]{The {\tt person} data frame}
+  
+\scriptsize
+
+<<persondat>>=
+names(person)
+@   
+
+We only need \emp{IdI}, \emp{Type}, \emp{Value}, \emp{Day}, \emp{Month},
+and \emp{Year}:
+
+<<keeponlyper>>=
+person <- select(person, IdI, Type, Value, Day, Month, Year)
+select(person, Day, Month, Year) %>% summary()
+@ 
+\end{frame}
+
+\begin{frame}[fragile]{Bad Month?}
+  
+\scriptsize
+
+<<badmonth>>=
+filter(person, Month > 12)
+@   
+
+We guess that \emp{Day} and \emp{Month} has been swapped for this person.
+
+<<whoishe>>=
+filter(person, IdI == 13285897)
+@ 
+\end{frame}
+
+\begin{frame}[fragile]{Swap back}
+ 
+\scriptsize  
+<<swapback>>=
+(row <- which(person$Month == 27))
+## Swap:
+temp <- person$Month[row]
+person$Month[row] <- person$Day[row]
+person$Day[row] <- temp
+##
+rm(temp, row)
+filter(person, IdI == 13285897 & Type == "DEATH_DATE")
+@   
+
+\end{frame}  
+
+\begin{frame}[fragile]{Make dates}
+  
+Use \emp{Day}, \emp{Month}, and \emp{Year} to create a \emp{Date}:
+
+\scriptsize
+<<createDate>>=
+person$date <- with(person, paste(Year, Month, Day, sep = "-")) %>%
+               as.Date("%Y-%m-%d")
+person$Day <- person$Month <- person$Year <- NULL
+str(person)
+filter(person, !is.na(date)) %>% head(3)
+@ 
+
+\end{frame}  
+
+\begin{frame}[fragile]{Date as a Value}
+
+\begin{itemize}  
+\item For \emp{BIRTH\_DATE} and \emp{DEATH\_DATE}, 
+\begin{itemize}  
+\item the \emp{date} is in fact the \emp{Value}.
+\end{itemize}
+\end{itemize}
+
+So:
+\scriptsize
+<<makevalue>>=
+change <- person$Type %in% c("BIRTH_DATE", "DEATH_DATE")
+person$Value[change] <- person$date[change]
+rm(change) # Just a temporary variable ...
+person$date <- NULL # Not needed any more
+head(person)
+@ 
+\end{frame}
+
+\begin{frame}[fragile]{{\tt person} is not tidy!}
+
+\begin{itemize}
+\item \emp{tidy}: 
+\begin{itemize}  
+\item  \emp{Variables} in \emp{columns}, 
+\item  \emp{observations} in \emp{rows}.
+\end{itemize}  
+\item The column \emp{Type} is variable names!
+\end{itemize}  
+
+\scriptsize
+
+<<badloc, echo = FALSE>>=
+person <- filter(person, !(Type == "BIRTH_LOCATION" & 
+                           Value == "Locality"))
+@ 
+
+\end{frame}
+
+\begin{frame}[fragile]{Duplicates}
+
+\begin{itemize}  
+\item There are duplicate \emp{Type == BIRTH\_LOCATION}.
+\begin{itemize}
+  \item How many?
+\end{itemize}    
+\end{itemize}    
+
+<<removedwho>>=
+group_by(person, IdI) %>% 
+    summarize(count = sum(Type == "BIRTH_LOCATION")) %>%
+    select(count) %>%
+    table()
+@ 
+
+\end{frame}
+
+\begin{frame}[fragile]{Remove all duplicates}
+
+
+Remove all \emp{duplicates} of \emp{IdI + Type}:
+
+<<remdup>>=
+NROW(person)
+dups <- with(person, paste(IdI, Type, sep = "")) %>%
+        duplicated()
+person <- filter(person, !dups)
+NROW(person)
+@ 
+
+\end{frame}
+
+\begin{frame}[fragile]{Make {\tt person} tidy!}
+  
+We use Hadley Wickham's package \emp{tidyr}:
+
+\scriptsize
+
+<<tidyrper>>=
+library(tidyr)
+person <- spread(person, Type, Value)
+person$BIRTH_DATE <- as.Date(as.numeric(person$BIRTH_DATE), 
+origin = "1970-01-01")
+person$DEATH_DATE <- as.Date(as.numeric(person$DEATH_DATE), 
+origin = "1970-01-01")
+names(person) <- tolower(names(person))
+str(person)
+@ 
+
+\end{frame}
+
+\begin{frame}[fragile]{Fix BIRTH\_LOCATION}
+
+{\tiny
+
+<<birloc>>=
+length(unique(person$birth_location))
+x <- select(person, birth_location) %>% 
+    table() %>% 
+    sort(decreasing = TRUE)
+x[1:12]
+@ 
+
+}
+
+<<townn>>= 
+person$urban <- with(person, 
+                     birth_location %in% 
+                     c("SKELLEFTEÅ", "SKELLEFTEÅ STAD"))
+@   
+
+\end{frame}  
+
+\begin{frame}[fragile]{Something went wrong?}
+
+\scriptsize{
+<<wentwrong}>>=
+x[c(1, 11)]
+with(person, table(urban))
+@
+}
+
+What? 
+
+\end{frame}
+
+\begin{frame}[fragile]{Fix BIRTH\_LOCATION, II}
+
+Use Hadley Wickham's package \emp{stringr}:
+
+{\scriptsize
+
+<<birloc2>>=
+library(stringr)
+person$birth_location <- str_trim(person$birth_location)
+person$urban <- with(person, 
+                     birth_location %in% 
+                     c("SKELLEFTEÅ", "SKELLEFTEÅ STAD"))
+with(person, table(urban))
+@   
+}
+
+\emp{str\_trim} removes \emp{whitespace} from start and end of a string.
+
+\end{frame}  
+
+
+\begin{frame}[fragile]{Fix legitimacy}
+
+  \scriptsize
+  
+<<fixlegi>>=
+with(person, table(legitimacy))
+@ 
+
+I make the daring assumption that:
+
+<<daringass>>=
+person$legitimacy[person$legitimacy == "Child of betrothal"] <-
+    "Illegitimate"
+person$legitimacy[person$legitimacy == "Unknown"] <-
+    "Legitimate"
+person$legitimacy <- factor(person$legitimacy) %>% 
+    relevel(ref = "Legitimate")
+with(person, table(legitimacy))
+@ 
+\end{frame}
+
+\begin{frame}[fragile]{Fix multiple\_birth}
+
+\scriptsize
+
+<<multbirth>>=
+with(person, table(multiple_birth))
+@ 
+
+We need to make a factor of this with the labels \emp{1, 2, 3}:
+
+<<labmultb>>=
+person$multiple_birth[!(person$multiple_birth %in% c(2, 3))] <- 1
+person$multiple_birth <- factor(person$multiple_birth) %>%
+    relevel(ref = "1")
+with(person, table(multiple_birth))
+@ 
+\end{frame}
+
+\begin{frame}[fragile]{The final person data frame}
+\scriptsize  
+<<finalpers>>=
+summary(person)
+@   
+
+\end{frame}  
+
+\begin{frame}[fragile]{The {\tt observation} file}
+
+Fix dates and select (extremely \emp{un-tidy}):
+
+\scriptsize
+
+<<lookatobs>>=
+observation$date <- with(observation, 
+                         paste(Year, Month, Day, sep = "-")) %>%
+                         as.Date("%Y-%m-%d")
+
+##
+observation$startdate <- with(observation, 
+            paste(StartYear, StartMonth, StartDay, sep = "-")) %>%
+            as.Date("%Y-%m-%d")
+
+##
+observation$enddate <- with(observation, 
+                paste(EndYear, EndMonth, EndDay, sep = "-")) %>%
+                as.Date("%Y-%m-%d")
+
+observation <- select(observation, 
+                      IdI, Type, Value, date, startdate, enddate)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Trim and sort}
+
+\scriptsize
+<<sortdis>>=
+observation$Type <- str_trim(observation$Type)
+observation$Value <- str_trim(observation$Value)
+observation <- arrange(observation, IdI, date, startdate, enddate)
+with(observation, table(Type))
+filter(observation, Type == "START_OBSERVATION") %>% 
+    select(Value) %>% table()
+filter(observation, Type == "END_OBSERVATION") %>% 
+    select(Value) %>% table()
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Type, Value, and new variables}
+
+\begin{itemize}
+\item Variables:
+\begin{itemize}
+\item \emp{married} (TRUE or FALSE)
+\item \emp{occupation} (code, 0 = no occupation)
+\item \emp{present} (True or FALSE)
+\end{itemize}
+\item START\_OBSERVATION $\rightarrow$ (present = TRUE)
+\item END\_OBSERVATION $\rightarrow$ (present = FALSE)
+\item OCCUPATION\_HISCO $\rightarrow$ occupation, start = 0
+\item MARRIAGE\_DATE $\rightarrow$ (married = TRUE), start = FALSE
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Fix {\tt present}}
+
+\scriptsize
+
+<<bend>>=
+where <- observation$Type == "START_OBSERVATION"
+observation$Type[where] <- "present"
+observation$Value[where] <- "TRUE"
+##
+where <- observation$Type == "END_OBSERVATION"
+observation$Type[where] <- "present"
+observation$Value[where] <- "FALSE"
+@
+
+
+<<kollapresent>>=
+head(observation)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Fix {\tt occupation} and {\tt married}}
+
+\scriptsize{
+
+<<occmar>>=
+where <- observation$Type == "OCCUPATION_HISCO"
+observation$Type[where] <- "occupation"
+##
+where <- observation$Type == "MARRIAGE_DATE"
+observation$Type[where] <- "married"
+observation$Value[where] <- "TRUE"
+head(observation)
+@
+}
+
+The \emp{dates} are \emp{irritating \ldots}
+
+\end{frame}
+
+\begin{frame}[fragile]{The dates}
+
+\scriptsize
+
+<<kolldate>>=
+filter(observation, !is.na(enddate)) %>% head(2)
+filter(observation, IdI == 10000250) %>% print()
+@
+\end{frame}
+
+\begin{frame}[fragile]{Decision about dates}
+
+\begin{itemize}
+\item When \emp{date} is missing, replace with \emp{startdate}.
+\item \emp{Remove} {\tt startdate} and {\tt enddate}.
+\item \emp{Sort} by \emp{IdI} and \emp{date}.
+\end{itemize}
+
+\scriptsize
+<<decdate>>=
+where <- is.na(observation$date)
+observation$date[where] <- observation$startdat[where]
+observation <- select(observation, IdI, Type, Value, date) %>%
+    arrange(IdI, date)
+filter(observation, IdI == 10000250) %>% print()
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Birth date}
+\scriptsize
+<<fxlwercase>>=
+names(observation) <- tolower(names(observation))
+indx <- match(observation$idi, person$idi)
+observation$birth_date <- person$birth_date[indx]
+select(observation, date, birth_date) %>% summary()
+observation <- observation[!is.na(observation$date), ]
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{New variables}
+
+\scriptsize
+<<newvar,results='asis'>>=
+vars <- unique(observation$type)
+observation[, vars] <- NA
+filter(observation, idi == 10000250) %>% 
+    select(type, value, present, occupation, married) %>%
+    kable()
+@
+
+\begin{enumerate}
+\item TRUE $\rightarrow$ column \emp{\tt present}
+\item 54020 $\rightarrow$ column \emp{\tt occupation}
+\item 62120 $\rightarrow$ column \emp{\tt occupation}
+\item TRUE $\rightarrow$ column \emp{\tt married}
+\item FALSE $\rightarrow$ column \emp{\tt present}
+\end{enumerate}
+\end{frame}
+
+\begin{frame}[fragile]{Fill in new variables}
+
+\scriptsize
+
+<<fillinobs,results='asis'>>=
+where <- observation$type == "present"
+observation$present[where] <- observation$value[where]
+##
+where <- observation$type == "occupation"
+observation$occupation[where] <- observation$value[where]
+##
+where <- observation$type == "married"
+observation$married[where] <- observation$value[where]
+##
+filter(observation, idi == 10000250) %>% 
+    select(type, value, present, occupation, married) %>%
+    kable()
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Remove {\tt type} and {\tt value}}
+
+And \emp{fill down} {\tt present}, {\tt occupation}, and {\tt married}.
+
+\scriptsize
+<<remtypevalue,results='asis'>>=
+observation <- mutate(observation, type = NULL, value = NULL)
+observation <- observation %>% group_by(idi) %>%
+    fill(present, occupation, married)
+filter(observation, idi == 10000250) %>% kable()
+@
+
+\vspace{\baselineskip}
+
+Suggestions:
+
+\begin{itemize}
+\item Start \emp{married} with \emp{FALSE}?
+\item Start \emp{occupation} with 0?
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Start married and occupation}
+
+\scriptsize
+<<starting>>=
+observation$firstRec <- with(observation, !duplicated(idi))
+observation$lastRec <- c(observation$firstRec[-1], TRUE)
+fillin <- with(observation, firstRec & is.na(occupation))
+observation$occupation[fillin] <- 0
+fillin <- with(observation, firstRec & is.na(married))
+observation$married[fillin] <- "FALSE"
+observation$married <- as.logical(observation$married)
+observation$occupation <- as.integer(observation$occupation)
+observation <- observation %>% 
+    group_by(idi) %>% 
+    fill(occupation, married)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{What does it look like now?}
+
+\scriptsize
+<<looknow>>=
+head(observation)
+@
+
+Must convert \emp{present} to \emp{logical}:
+
+<<conlogpr>>=
+observation$present <- as.logical(observation$present)
+@
+
+\end{frame}
+
+
+\begin{frame}[fragile]{Introducing {\tt age}, {\tt enter}}
+
+\scriptsize
+
+<<introenter>>=
+observation$enter <- 
+    with(observation, round(as.numeric(date - birth_date) / 365.2425, 3))
+select(observation, birth_date, date, enter) %>% head()
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Introducing {\tt exit}}
+
+\scriptsize
+
+\begin{itemize}
+\item On last row: \emp{exit} is equal to \emp{enter}.
+\item On non-last row: \emp{exit} is equal to \emp{enter} on the next row.
+\end{itemize}
+
+<<introexit>>=
+observation$date2 <- c(observation$date[-1], NA)
+observation$exit <- c(observation$enter[-1], 0)
+observation <- filter(observation, (!lastRec) & (exit > enter) & present)
+select(observation, birth_date, date, enter, exit) %>% head()
+@
+
+\end{frame}
+
+
+\begin{frame}[fragile]{Mortality}
+
+Needs \emp{death\_date} from \emp{person} (and some more \ldots)
+
+\scriptsize
+
+<<needsdea>>=
+indx <- match(observation$idi, person$idi)
+observation$death_date <- person$death_date[indx]
+observation$sex <- person$sex[indx]
+observation$event <- with(observation, 
+                          !is.na(death_date) & 
+                              !is.na(date2) & 
+                              death_date == date2)
+with(observation, sum(event))
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{A first mortality analysis}
+
+<<firstanal, echo = FALSE>>=
+library(eha)
+fit <- coxph(Surv(enter, exit, event) ~ strata(sex), data = observation)
+plot(survfit(fit), mark.time = FALSE, col = c("red", "blue"), xlab = "Age", 
+     ylab = "Surviving fraction")
+abline(h = 0)
+text(50, 0.7, "Women", col = "red")
+text(50, 0.4, "Men", col = "blue")
+deaths <- sum(observation$event)
+@
+
+\begin{itemize}
+\item Kaplan-Meier estimates for women and men, 
+\item based on \emp{\Sexpr{deaths} deaths}.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Adding info from mother}
+
+\scriptsize
+<<readindivindiv>>=
+IndivIndiv <- read.table("rawdata/INDIV_INDIV.txt", header = FALSE)
+IndivIndiv <- IndivIndiv[, c(3, 4, 6)]
+IndivIndiv <- filter(IndivIndiv, V6 == "Mother")
+IndivIndiv <- IndivIndiv[, 1:2]
+names(IndivIndiv) <- c("mother", "child")
+indx <- match(observation$idi, IndivIndiv$mother)
+observation$m_idi <- IndivIndiv$mother[indx]
+@
+
+Now we can put on observation from \emp{person} via the key \emp{m\_idi}
+
+\end{frame}
+
+
+\begin{frame}[fragile]{Save \ldots}
+
+<<saveall>>=
+save(observation, file = "data/observation.rda")
+save(person, file = "data/person.rda")
+@
+
+\end{frame}
+
+\end{document}
