@@ -592,6 +592,40 @@ head(indivIndiv)</code></pre>
 ## 4 11404184 19717835  Sibling
 ## 5 11404184 11605262  Sibling
 ## 6 11404184 17175854  Sibling</code></pre>
+<p>Now, we are only interested of the <em>Mother-Child</em> relation, so we choose only rows with <em>Relation = Mother</em>.</p>
+<pre class="r"><code>indivIndiv &lt;- filter(indivIndiv, Relation == &quot;Mother&quot;) %&gt;%
+              select(id_1, id_2)
+names(indivIndiv) &lt;- c(&quot;Mother&quot;, &quot;Child&quot;)
+indivIndiv &lt;- arrange(indivIndiv, Mother, Child)
+indivIndiv$Mother &lt;- as.character(indivIndiv$Mother)
+indivIndiv$Child &lt;- as.character(indivIndiv$Child)
+head(indivIndiv)</code></pre>
+<pre><code>##     Mother    Child
+## 1 10000250 13720314
+## 2 10000250 17366821
+## 3 10000325 11274173
+## 4 10000325 12665973
+## 5 10000325 13160159
+## 6 10000325 17376793</code></pre>
+<p>Now, this is a <em>time-fixed</em> relation, so we can put on the id of <em>Mother</em> directly on <em>person</em>.</p>
+<pre class="r"><code>person &lt;- left_join(person, indivIndiv, by = c(&quot;Id_I&quot; = &quot;Child&quot;), copy = TRUE)</code></pre>
+<pre><code>## Warning in left_join_impl(x, y, by$x, by$y, suffix$x, suffix$y): joining
+## factor and character vector, coercing into character vector</code></pre>
+<pre class="r"><code>head(person)</code></pre>
+<pre><code>##       Id_I BIRTH_DATE BIRTH_LOCATION DEATH_DATE LEGITIMACY MULTIPLE_BIRTH
+## 1 10000250 1785-12-06     SKELLEFTEÅ 1848-03-10 Legitimate              1
+## 2 10002373 1881-06-16         NORSJÖ       &lt;NA&gt;    Unknown              1
+## 3 10002537 1734-02-20     SKELLEFTEÅ       &lt;NA&gt; Legitimate              1
+## 4 10002871 1728-11-24     SKELLEFTEÅ       &lt;NA&gt; Legitimate              2
+## 5 10003182 1785-12-06     SKELLEFTEÅ 1860-02-04 Legitimate              1
+## 6 10003197 1759-01-25     SKELLEFTEÅ       &lt;NA&gt; Legitimate              1
+##      SEX   Mother
+## 1 Female 18748889
+## 2 Female 18121562
+## 3   Male 17783596
+## 4 Female 18849344
+## 5   Male 14139266
+## 6   Male 16675171</code></pre>
 </div>
 <div id="references" class="section level2 unnumbered">
 <h2>References</h2>
