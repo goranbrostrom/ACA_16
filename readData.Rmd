@@ -2,7 +2,10 @@
 title: "Convert IDS files to R format"
 author: "Göran Broström"
 date: "November 23, 2016"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
 bibliography: ids.bib
 ---
 
@@ -58,7 +61,7 @@ select(individual, Type, TimeInvariant) %>% table()
 
 The symbol "*%>%*"" is a *pipe*: You can think of it as saying "*and then*". It is equivalent to a two-step nested procedure:
 
-```{r equi, eval = FALSE}
+```{equi, eval = FALSE}
 table(select(individual, Type, TimeInvariant))
 ```
 
@@ -263,5 +266,26 @@ indivIndiv <- select(indivIndiv, V3, V4, V6)
 names(indivIndiv) <- c("id_1", "id_2", "Relation")
 head(indivIndiv)
 ```
+
+Now, we are only interested of the *Mother-Child* relation, so we choose only rows with *Relation = Mother*.
+
+```{r relmoth}
+indivIndiv <- filter(indivIndiv, Relation == "Mother") %>%
+              select(id_1, id_2)
+names(indivIndiv) <- c("Mother", "Child")
+indivIndiv <- arrange(indivIndiv, Mother, Child)
+indivIndiv$Mother <- as.character(indivIndiv$Mother)
+indivIndiv$Child <- as.character(indivIndiv$Child)
+head(indivIndiv)
+```
+
+Now, this is a *time-fixed* relation, so we can put on the id of *Mother* directly on *person*.
+
+```{r mothonchild}
+person <- left_join(person, indivIndiv, by = c("Id_I" = "Child"), copy = TRUE)
+head(person)
+```
+
+
 
 ## References
