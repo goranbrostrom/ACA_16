@@ -5,8 +5,12 @@
 This is material for the course *Intermediate Data Structure and Extraction
 Software*, Amsterdam 28- 30 November 2016.
 
-**readData.Rmd** reads the text files *INDIVIDUAL* and *INDIV_INDIV*, makes
-  some selections and saves in **R** format (*.rda*). 
+**slides.Rnw** creates the slides, bu note that you need a TeX system on
+    your computer to actually build
+**slides.pdf**	
+**presentation.Rmd** reads the created files *observation.rda* and
+    *person.rda* (not included here).
+**presentation.pdf** is the corresponding pdf-file.	
 
 **fromIDS.Rmd** is an *R markdown* file; the corresponding *html* output is 
 **fromIDS.html** (included here for convenience). Creates a file for
