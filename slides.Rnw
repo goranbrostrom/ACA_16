@@ -64,6 +64,8 @@ names(individual) <- c("Id", "IdD", "IdI", "Source",
                  "StartDay", "StartMonth", "StartYear",
                  "EndDay", "EndMonth", "EndYear",
                  "DateOfOccurrence", "TimeInvariant")
+
+save(individual, file = "data/individual.rda")
 @   
   
 \end{frame}  
@@ -527,7 +529,7 @@ filter(observation, Type == "END_OBSERVATION") %>%
 \begin{itemize}
 \item \emp{married} (TRUE or FALSE)
 \item \emp{occupation} (code, 0 = no occupation)
-\item \emp{present} (True or FALSE)
+\item \emp{present} (TRUE or FALSE)
 \end{itemize}
 \item START\_OBSERVATION $\rightarrow$ (present = TRUE)
 \item END\_OBSERVATION $\rightarrow$ (present = FALSE)
@@ -796,7 +798,7 @@ IndivIndiv <- IndivIndiv[, c(3, 4, 6)]
 IndivIndiv <- filter(IndivIndiv, V6 == "Mother")
 IndivIndiv <- IndivIndiv[, 1:2]
 names(IndivIndiv) <- c("mother", "child")
-indx <- match(observation$idi, IndivIndiv$mother)
+indx <- match(observation$idi, IndivIndiv$child) ## ERROR in handouts!!
 observation$m_idi <- IndivIndiv$mother[indx]
 @
 
@@ -812,6 +814,7 @@ save(observation, file = "data/observation.rda")
 save(person, file = "data/person.rda")
 @
 
+See \url{https://github.com/goranbrostrom/ACA_16/}
 \end{frame}
 
 \end{document}
