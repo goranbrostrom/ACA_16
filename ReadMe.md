@@ -13,7 +13,7 @@ Software*, Amsterdam 28- 30 November 2016.
 **presentation.Rmd** reads the created files *observation.rda* and
     *person.rda* (not included here).
 
-**presentation.pdf** is the corresponding pdf-file.	
+**presentation.html** is the corresponding html file.	
 
 **fromIDS.Rmd** is an *R markdown* file; the corresponding *html* output is 
 
