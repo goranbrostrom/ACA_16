@@ -1,0 +1,46 @@
+---
+title: "Analysis of Mortality"
+author: "Göran Broström"
+date: "30 November 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+I want to study infant mortality with data from the file *observation*. So I load it, and also the file *person*.
+
+```{r}
+load("data/observation.rda")
+load("data/person.rda")
+```
+
+There are some redundant information in *observation* which we remove:
+
+```{r}
+names(observation)
+library(dplyr)
+obs <- select(observation, idi, birthdate = birth_date, sex, occupation, married, enter, exit, event, m_idi)
+summary(obs)
+```
+
+There are some glitches here: A quick fix:
+
+```{r}
+obs$enter <- pmax(obs$enter, 0)
+with(obs, sum(exit - enter <= 0))
+```
+
+Good!
+
+The occupation:
+
+```{r}
+obs <- filter(obs, occupation > 9999 &
+                  occupation < 100000)
+obs$occ <- cut(obs$occupation, seq(1:10) * 10000, right = FALSE, labels = 1:9)
+with(obs,  table(occ, event))
+```
