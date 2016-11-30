@@ -1,0 +1,271 @@
+\documentclass{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{color}
+\usepackage{hyperref}
+\newcommand{\emp}[1]{\textcolor{blue}{#1}}
+
+\usetheme{Singapore}% best choice.
+  \setbeamercovered{transparent}%
+
+\newcommand{\R}{{\bf R}}
+\newcommand{\code}[1]{{\tt #1}}
+
+\title{Reading data into R}
+
+\author{Göran Broström}
+
+\date{30 September 2015}
+
+\begin{document}
+
+\begin{frame}
+
+\maketitle
+
+\end{frame}
+
+\begin{frame}{Goal}
+
+\begin{itemize}
+
+\item Data
+
+\begin{itemize}
+\item on \emp{disk} (csv, excel, SPSS, \ldots)
+\item in a \emp{data base} (SQL)
+\item on the \emp{web}
+\end{itemize}
+\item to a \emp{data.frame} in {\bf R}.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Alternatives}
+
+\begin{itemize}
+\item {\bf R}: \emp{read.table} (csv)
+\item {\bf R} recommended package \emp{foreign} (SPSS, Stata, \ldots)
+\item Hadley Wickham's packages:
+\begin{itemize}
+\item \emp{readr} (text files, csv)
+\item \emp{readxl} (excel)
+\item \emp{haven} (SPSS, Stata, \ldots)
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{A data frame}
+
+A \emp{data.frame} is a rectangular data format, where
+\begin{itemize}
+\item columns are variables, and
+\item rows are observations.
+\end{itemize}
+
+<<df, echo = FALSE, message = FALSE, results = 'asis'>>=
+library(eha)
+library(xtable)
+male.mortality$event <- as.logical(male.mortality$event)
+xtable(head(male.mortality))
+rm(male.mortality)
+@
+Note \emp{column} and \emp{row names}. Columns may be of different types: \emp{numeric}, \emp{factor}, \emp{character}, or \emp{logical}.
+
+\end{frame}
+
+\begin{frame}[fragile]{read.table}
+
+Data from SCB (csv file):
+
+\begin{verbatim}
+--------------------------------------
+"Döda efter region, ålder, kön och år"
+
+"region";"ålder";"kön";"2014"
+"00 Riket";"0 år";"män";151
+"00 Riket";"0 år";"kvinnor";100
+"00 Riket";"1 år";"män";12
+"00 Riket";"1 år";"kvinnor";13
+.....
+"00 Riket";"100+ år";"män";190
+"00 Riket";"100+ år";"kvinnor";793
+-------------------------------------
+\end{verbatim}
+Want to remove first two lines and use third line as column names.
+\end{frame}
+
+\begin{frame}[fragile]{Reading data}
+
+\footnotesize
+<<rda, echo=TRUE>>=
+deaths <- read.table("http://capa.ddb.umu.se/cedaR/Data/BE0101D9.csv", 
+                     skip = 2, header = TRUE, sep = ";", 
+                     stringsAsFactors = FALSE,
+                     fileEncoding = "latin1")
+head(deaths)
+@
+
+This data frame needs \emp{cleaning}.
+\end{frame}
+
+\begin{frame}[fragile]{Cleaning the data}
+
+Problems with \code{deaths}:
+
+\begin{enumerate}
+\item We don't need \code{region}
+\item The variable \emp{ålder} should be \emp{numeric}
+\item We need variable names without Swedish letters
+\end{enumerate}
+
+So,
+\scriptsize
+<<clean>>=
+deaths$region <- NULL # Item 1.
+names(deaths) <- c("age", "sex", "deaths") # Item 3.
+tail(deaths)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Fixing 'age'}
+
+A simple way out:
+\scriptsize
+
+<<simpage>>=
+deaths$age <- rep(0:100, each = 2)
+head(deaths)
+tail(deaths)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{'str' and 'summary'}
+\scriptsize
+<<strsum>>=
+str(deaths)
+summary(deaths)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Fixing 'sex'}
+\scriptsize
+<<fixsex>>=
+sex <- factor(deaths$sex, labels = c("men", "women"))
+table(sex, deaths$sex)
+@
+
+Oops!
+
+<<fixsex2>>=
+sex <- factor(deaths$sex, labels = c("women", "men"))
+table(sex, deaths$sex)
+@
+
+OK!
+
+<<swsex>>=
+deaths$sex <- sex
+rm(sex)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Final result}
+\scriptsize
+<<finres>>=
+head(deaths, 3)
+summary(deaths)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Statistics in graphical form}
+\scriptsize
+<<statgr, fig.height=3.8>>=
+with(deaths[deaths$sex == "women", ], 
+     plot(age, deaths, type = "s", col = "red", main = "Sweden 2014"))
+with(deaths[deaths$sex == "men", ], 
+     lines(age, deaths, type = "s", col = "blue"))
+text(50, 600, "Men", col = "blue")
+text(80, 300, "Women", col = "red")
+@
+
+\end{frame}
+\begin{frame}[fragile]{The 'foreign' package}
+
+See the help page for the \code{foreign} package; 
+
+\begin{itemize}
+\item \code{read.spss} (SPSS),
+\item \code{read.dta} (Stata), and 
+\item others.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Hadley Wickham's \code{readxl}}
+\scriptsize
+<<readxl>>=
+library(readxl)
+download.file("http://capa.ddb.umu.se/cedaR/Data/DemoDatabase.xlsx",
+              "demo.xlsx")
+
+(namn <- excel_sheets("demo.xlsx")) # Get the names of the sheets
+@
+
+Get all the sheets into data frames with the same names
+
+<<getalls>>=
+for (sheet in namn){
+   assign(sheet, read_excel("demo.xlsx", sheet))
+}
+ls()
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{INDIVIDUAL}
+
+\scriptsize
+
+<<INDIVI>>=
+str(INDIVIDUAL)
+@
+
+\end{frame}
+
+\begin{frame}[fragile]{Hadley Wickham's \code{haven}}
+
+\scriptsize
+
+<<haven>>=
+library(haven)
+download.file("http://capa.ddb.umu.se/cedaR/Data/cox.sav", "cox.sav")
+x <- read_spss("cox.sav")
+summary(x)
+head(x)
+@
+
+
+\end{frame}
+
+\begin{frame}[fragile]{Cox regression, paired data}
+
+\scriptsize
+<<paircox, echo = TRUE, results = "asis">>=
+library(eha)
+fit <- coxreg(Surv(TIME, EVENT) ~ as.factor(TREATM) + strata(PAIR), 
+              data = x)
+dr <- drop1(fit, test = "Chisq")
+ltx(fit, dr = dr, digits = 4)
+@
+
+\end{frame}
+
+\end{document}
