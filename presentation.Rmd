@@ -1,0 +1,228 @@
+---
+title: "Using R"
+author: "Göran Broström"
+date: '2016-11-30'
+output:
+  html_document: default
+  beamer_presentation:
+    fig_height: 3
+    highlight: tango
+    keep_tex: yes
+  ioslides_presentation:
+    fig_height: 3
+    highlight: tango
+  pdf_document: default
+  slidy_presentation:
+    highlight: tango
+css: style.css
+---
+
+```{setup, include = FALSE, echo = FALSE}
+knitr::opts_chunk$set(cache=TRUE,echo=TRUE,message=FALSE,warning=FALSE,fig.height = 4, fig.path="figslides/")
+table <- function(..., useNA = 'ifany') base::table(..., useNA = useNA)
+library(knitr)
+library(dplyr)
+```
+
+## What is R?
+
+**R** is
+
+-  a language and environment for *statistical computing* and *graphics*.
+-  a *GNU project* originating from the *S* language and
+environment which was developed at *Bell Laboratories* (formerly AT&T, now
+Lucent Technologies) by *John Chambers* and colleagues.
+
+-  a different implementation of S.
+-  25 years old.
+
+
+
+
+From [The R project](http://www.r-project.org/about.html)
+
+
+## What is R?
+
+
+-  R provides a wide variety of statistical and graphical techniques,
+  and is *highly extensible*.
+-  One of R’s strengths is the ease with which *well-designed
+  publication-quality plots* can be produced, including mathematical symbols
+  and formulae where needed.
+
+
+## The R environment
+
+**R** includes
+
+-     an effective *data handling* and *storage* facility,
+-     operators for *calculations on arrays*, in
+  particular *matrices*,
+-     intermediate
+  *tools for data analysis*,
+-     superb *graphical facilities*, and
+-     a simple and effective *programming language*
+  which includes
+
+    -  *conditionals*,
+    -  *loops*,
+    -  user-defined recursive functions and
+    -  *input* and *output* facilities.
+
+## Why R?
+
+-  **R** is *free*:
+    -  as in *free beer*,
+    -  as in *free speech*.
+
+-  **R** can be installed on as many computers you like
+-  **R** is *open-source*.
+-  **R** has thousands (7000+ today) of *add-on packages*.
+
+
+## What is RStudio?
+
+RStudio allows you to *run R* in a more *user-friendly* environment
+
+
+-  It is *free* and *open-source*,
+-  Tools for *interacting* statistical *analysis* with report
+  *writing*.
+    -  *R markdown*
+    -  *knitr*
+    -  LaTeX
+-  Tools for *version control* (git, gitHub)
+-  [Support](http://www.rstudio.com).
+
+
+## Why RStudio?
+
+Also,
+
+-  It is *available* on all (Linux, Mac, Windows) platforms.
+-  It looks *exactly the same* on all platforms.
+      -  It *behaves exactly the same* on all platforms.
+
+## What is reproducible research?
+
+-  It can be *reproduced by others*,
+-  It can be reproduced *by yourself* (6 months later)!
+
+
+Focus is on reproducing results *from a single set of observations*.
+
+
+## What is reproducible research *not*?
+
+-  We do  *not* mean *replicable*.
+    - **Replicable:** If the *results* can be replicated on
+      *another* study population.
+-  It is rather about rules of *disciplin* and *documentation*.
+-  *RStudio* gives you the *tools*.
+
+
+## Version control
+
+-  Must be *easy* to go back to *earlier versions* of your research:
+    -  You detect *errors*,
+    -  You get *new data*,
+    -  The journal asks you to perform *separate analyses* for men
+      and women,
+      -  etc.
+-  There are *tools* to help:
+    -  [git](http://git-scm.com), by Linus Torvalds,
+        -  [gitHub](https://github.com)
+
+
+## Analysis
+
+I want to study infant mortality with data from the file *observation*. So I load it, and also the file *person*.
+
+```{r}
+load("data/observation.rda")
+load("data/person.rda")
+```
+
+There are some redundant information in *observation* which we remove:
+
+```{r}
+names(observation)
+```
+
+## Load dplyr
+
+```{r}
+library(dplyr)
+obs <- select(observation, idi, birthdate = birth_date, sex, occupation, married, enter, exit, event, m_idi)
+summary(obs)
+```
+## Glitches
+
+There are some glitches here: A quick fix:
+
+```{r}
+obs$enter <- pmax(obs$enter, 0)
+with(obs, sum(exit - enter <= 0))
+```
+
+Good!
+
+## The occupation:
+
+```{r}
+obs <- filter(obs, occupation < 100000)
+obs$occ <- cut(obs$occupation, seq(1:10) * 10000, right = FALSE, 
+               labels = 1:9)
+with(obs,  table(event, occ))
+```
+
+## First survival analysis
+
+<small>
+```{r}
+library(eha)
+fit <- coxreg(Surv(enter, exit, event) ~ occ, data = obs)
+##drop1(fit, test = "Chisq")
+```
+</small>
+
+## The coefficients
+
+```{r}
+summary(fit)
+```
+
+## Mother's age
+
+```{r}
+obs$birthdate <- as.numeric(toTime(obs$birthdate))
+indx <- match(obs$m_idi, person$idi)
+obs$m.birthdate <- person$birth_date[indx] 
+obs$m.birthdate <- as.numeric(toTime(obs$m.birthdate))
+obs$m.age <- with(obs, birthdate + enter - m.birthdate)
+select(obs, birthdate, idi, m_idi, m.age, enter, exit) %>% head(3)
+```
+
+## Infant mortality
+
+```{r}
+source("R/ageWin.R")
+infant <- age.window(as.data.frame(obs), c(0, 1))
+summary(infant)
+```
+
+## Cox regression
+
+```{r}
+fit <- coxph(Surv(enter, exit, event) ~ m.age, data = infant)
+summary(fit)
+```
+
+## Cumulative hazards
+
+```{r}
+plot(survfit(fit), fun = "cumhaz", mark.time = FALSE)
+```
+
+
