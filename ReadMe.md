@@ -7,12 +7,16 @@ Software*, Amsterdam 28- 30 November 2016.
 
 **slides.Rnw** creates the slides, bu note that you need a TeX system on
     your computer to actually build
+
 **slides.pdf**	
+
 **presentation.Rmd** reads the created files *observation.rda* and
     *person.rda* (not included here).
+
 **presentation.pdf** is the corresponding pdf-file.	
 
 **fromIDS.Rmd** is an *R markdown* file; the corresponding *html* output is 
+
 **fromIDS.html** (included here for convenience). Creates a file for
 *statistical analysis from IDS files* 
 (INDIVIDUAL and INDIV_INDIV, particularly simple versions). And
